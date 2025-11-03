@@ -1,0 +1,63 @@
+7. lora-finetune gpt-2
+
+# pip install transformers datasets peft torch evaluate
+
+
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
+from datasets import load_dataset
+from peft import LoraConfig, get_peft_model, TaskType
+import evaluate
+
+# --- Experiment 7: LoRA fine-tune DistilGPT-2 ---
+
+def load_corpus():
+    return load_dataset("wikitext", "wikitext-2-raw-v1", split="train[:1%]")
+
+def tokenize_corpus(ds, tok, block_size=128):
+    def fn(batch):
+        out = tok(batch["text"], truncation=True, padding="max_length", max_length=block_size)
+        out["labels"] = out["input_ids"].copy()
+        return out
+    return ds.map(fn, batched=True)
+
+def setup_model():
+    name = "distilgpt2"
+    tok = AutoTokenizer.from_pretrained(name)
+    # Set the pad token to the end-of-sequence token
+    tok.pad_token = tok.eos_token
+    model = AutoModelForCausalLM.from_pretrained(name)
+    lora = LoraConfig(task_type=TaskType.CAUSAL_LM, r=8, lora_alpha=16, lora_dropout=0.1)
+    model = get_peft_model(model, lora)
+    return model, tok
+
+def train_model(model, tok, train_ds):
+    args = TrainingArguments(output_dir="./results", per_device_train_batch_size=4, num_train_epochs=1, logging_steps=10, save_strategy="no", report_to="none")
+    trainer = Trainer(model=model, args=args, train_dataset=train_ds, tokenizer=tok)
+    trainer.train(); return model
+
+def evaluate_model(model, tok, raw_ds):
+    ppl = evaluate.load("perplexity")
+    # Filter out empty strings
+    texts = [t for t in raw_ds[:50]["text"] if t.strip()]
+    # Use your fine-tuned model directly
+    res = ppl.compute(model_id="distilgpt2", predictions=texts)
+    print("Perplexity:", res['perplexities'])
+
+def generate(model, tok, prompt="Once upon a time"):
+    device = next(model.parameters()).device  # auto-detect model device (cuda/cpu)
+    ids = tok(prompt, return_tensors="pt").to(device)  # <-- move to same device
+    out = model.generate(**ids, max_length=60, do_sample=True, top_k=50, top_p=0.95)
+    print(tok.decode(out[0], skip_special_tokens=True))
+
+
+def run_pipeline():
+    raw = load_corpus()
+    model, tok = setup_model()
+    tokenized = tokenize_corpus(raw, tok)
+    model = train_model(model, tok, tokenized)
+    evaluate_model(model, tok, raw)
+    generate(model, tok)
+
+if __name__ == "__main__":
+    run_pipeline()
