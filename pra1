@@ -1,0 +1,36 @@
+import tensorflow as tf
+
+print("Eager execution:", tf.executing_eagerly())
+
+# Tensor creation
+a = tf.constant([[1, 2], [3, 4]])
+b = tf.constant([[5, 6], [7, 8]])
+print("a:\n", a)
+print("b:\n", b)
+
+# Basic operations
+print("Add:\n", tf.add(a, b))
+print("Sub:\n", tf.subtract(a, b))
+print("Mul:\n", tf.multiply(a, b))
+print("MatMul:\n", tf.matmul(a, b))
+
+# Manipulation
+print("Reshape a:\n", tf.reshape(a, [4, 1]))
+print("Concat:\n", tf.concat([a, b], axis=0))
+
+# Gradient example (computation graph)
+x = tf.Variable(3.0)
+with tf.GradientTape() as t:
+    y = x**2 + 2*x + 1
+grad = t.gradient(y, x)
+print("y:", y.numpy(), "dy/dx:", grad.numpy())
+
+# Dynamic computation (eager)
+for i in range(3):
+    x = tf.constant(i, dtype=tf.float32)
+    y = x*2 + 1
+    print(f"x={x.numpy()}, y={y.numpy()}")
+
+
+
+
