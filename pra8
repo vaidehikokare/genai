@@ -1,0 +1,43 @@
+8.Design and test promt  rouge and bleu
+
+# pip install transformers
+#!pip install evaluate
+#!pip install rouge_score
+
+from transformers import pipeline
+from evaluate import load
+
+
+def evaluate_prompt(prompt, reference):
+    # Using a summarization pipeline with a model specifically fine-tuned for summarization
+    # (t5-small) to generate more coherent and relevant summaries.
+    # max_length and min_length are used to control the output summary length.
+    # Explicitly setting max_new_tokens to match max_length to avoid conflict and ensure length control.
+    gen = pipeline('summarization', model='t5-small', tokenizer='t5-small')
+    out = gen(prompt, max_length=8, min_length=4, max_new_tokens=8)[0]['summary_text']
+
+    # Basic ROUGE/ BLEU evaluation
+    rouge = load('rouge')
+    bleu = load('bleu')
+
+    rouge_scores = rouge.compute(predictions=[out], references=[reference])
+    # BLEU expects tokenized references
+    bleu_scores = bleu.compute(predictions=[out], references=[reference])
+    return {'generated': out, 'rouge': rouge_scores, 'bleu': bleu_scores}
+
+
+# Example usage:
+prompt = 'Summarize: The cat sat on the mat.'
+reference = 'A cat was sitting on a mat.'
+result = evaluate_prompt(prompt, reference)
+
+print("Prompt:", prompt)
+print("Reference:", reference)
+print("\nGenerated Text:")
+print(result['generated'])
+print("\nROUGE Scores:")
+for k, v in result['rouge'].items():
+    print(f"  {k}: {v}")
+print("\nBLEU Scores:")
+for k, v in result['bleu'].items():
+    print(f"  {k}: {v}")
