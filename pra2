@@ -1,0 +1,57 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+
+# -----------------------------
+# 1️⃣ Create Random Dataset
+# -----------------------------
+np.random.seed(42)
+
+data = pd.DataFrame({
+    'image_id': [f'img_{i:03}' for i in range(1, 8)],
+    'width': np.random.choice([640, 800, 1024, np.nan], size=7),
+    'height': np.random.choice([480, 600, 720, np.nan], size=7),
+    'category': np.random.choice(['portrait', 'landscape', 'wildlife', np.nan], size=7),
+    'brightness': np.random.choice([0.5, 0.7, 0.9, np.nan], size=7),
+    'caption': np.random.choice([
+        "Smiling face", "Beautiful mountain", "Sleeping cat",
+        "Bird flying", "City skyline", np.nan
+    ], size=7)
+})
+
+print("🟡 Original Random Dataset:")
+print(data)
+
+# -----------------------------
+# 2️⃣ Handle Missing Values
+# -----------------------------
+num_cols = ['width', 'height', 'brightness']
+cat_cols = ['category', 'caption']
+
+# Fill numerical NaNs with mean
+data[num_cols] = data[num_cols].fillna(data[num_cols].mean())
+
+# Fill categorical NaNs with mode
+data[cat_cols] = data[cat_cols].fillna(data[cat_cols].mode().iloc[0])
+
+# -----------------------------
+# 3️⃣ Normalize Numerical Columns
+# -----------------------------
+scaler = MinMaxScaler()
+data[num_cols] = scaler.fit_transform(data[num_cols])
+
+# -----------------------------
+# 4️⃣ Encode Categorical Columns
+# -----------------------------
+encoder = OneHotEncoder(sparse_output=False)
+encoded = encoder.fit_transform(data[['category']])
+encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out(['category']))
+
+# Merge encoded columns
+data = pd.concat([data.drop('category', axis=1), encoded_df], axis=1)
+
+# -----------------------------
+# 5️⃣ Final Cleaned Data
+# -----------------------------
+print("\n🟢 Cleaned & Preprocessed Dataset:")
+print(data)
